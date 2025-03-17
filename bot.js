@@ -125,7 +125,6 @@ const visitTypeMenu = Markup.keyboard([
 // Меню челленджей
 const challengesMenu = Markup.keyboard([
     ['🎨 Рисуй каждый день!', '📸 Фотограф недели'],
-    ['📖 Оставь отзыв'],
     ['🔙 Вернуться назад']
 ]).resize();
 
@@ -229,45 +228,6 @@ bot.hears('🎨 Рисуй каждый день!', (ctx) => {
     saveData(usersData);
 
     ctx.reply('🎨 Поучаствуй в челлендже! Отправляй мне свои рисунки каждый день и заработай баллы.');
-});
-
-bot.hears('📖 Словарный запас', (ctx) => {
-    const userId = ctx.from.id;
-
-    // Инициализируем данные пользователя, если их нет
-    if (!usersData[userId]) usersData[userId] = {};
-    
-    // Устанавливаем челлендж "Словарный запас"
-    usersData[userId].challenge = 'vocabulary';
-    usersData[userId].wordCount = 0;
-
-    saveData(usersData);
-    ctx.reply('📖 В этом челлендже вам нужно отправить *список новых слов* (например, на английском). Отправьте не менее 5 слов!');
-});
-
-// Обработка текста (списка слов)
-bot.on('text', (ctx) => {
-    const userId = ctx.from.id;
-    const userState = usersData[userId];
-
-    if (userState?.challenge === 'vocabulary') {
-        const words = ctx.message.text.split(/\s+/); // Разделяем текст на слова
-        userState.wordCount += words.length;
-        saveData(usersData);
-
-        if (userState.wordCount >= 5) {
-            usersData[userId].points = (usersData[userId].points || 0) + 5; // Начисляем 5 баллов
-            saveData(usersData);
-
-            ctx.reply('✅ Поздравляем! Вы отправили минимум 5 слов и получили *5 баллов*!', { parse_mode: 'Markdown' });
-
-            // Завершаем челлендж
-            delete usersData[userId].challenge;
-            delete usersData[userId].wordCount;
-        } else {
-            ctx.reply(`📖 Принято! Осталось еще *${5 - userState.wordCount}* слов до завершения челленджа.`, { parse_mode: 'Markdown' });
-        }
-    }
 });
 
 
