@@ -231,28 +231,47 @@ bot.hears('🎨 Рисуй каждый день!', (ctx) => {
     ctx.reply('🎨 Поучаствуй в челлендже! Отправляй мне свои рисунки каждый день и заработай баллы.');
 });
 
-bot.hears('📝 Оставь отзыв', (ctx) => {
+bot.hears('📖 Словарный запас', (ctx) => {
     const userId = ctx.from.id;
-    usersData[userId] = usersData[userId] || {};
-    usersData[userId].challenge = 'review';
+
+    // Инициализируем данные пользователя, если их нет
+    if (!usersData[userId]) usersData[userId] = {};
+    
+    // Устанавливаем челлендж "Словарный запас"
+    usersData[userId].challenge = 'vocabulary';
+    usersData[userId].wordCount = 0;
+
     saveData(usersData);
-    ctx.reply('📢 Посетил кружок или мероприятие? Оставь отзыв и получи 5 баллов!');
+    ctx.reply('📖 В этом челлендже вам нужно отправить *список новых слов* (например, на английском). Отправьте не менее 5 слов!');
 });
 
+// Обработка текста (списка слов)
 bot.on('text', (ctx) => {
     const userId = ctx.from.id;
     const userState = usersData[userId];
 
-    if (userState?.challenge === 'review') {
-        usersData[userId].points = (usersData[userId].points || 0) + 5;
+    if (userState?.challenge === 'vocabulary') {
+        const words = ctx.message.text.split(/\s+/); // Разделяем текст на слова
+        userState.wordCount += words.length;
         saveData(usersData);
-        
-        ctx.reply('✅ Спасибо за отзыв! Вам начислено *5 баллов*!', { parse_mode: 'Markdown' });
-        delete usersData[userId].challenge;
+
+        if (userState.wordCount >= 5) {
+            usersData[userId].points = (usersData[userId].points || 0) + 5; // Начисляем 5 баллов
+            saveData(usersData);
+
+            ctx.reply('✅ Поздравляем! Вы отправили минимум 5 слов и получили *5 баллов*!', { parse_mode: 'Markdown' });
+
+            // Завершаем челлендж
+            delete usersData[userId].challenge;
+            delete usersData[userId].wordCount;
+        } else {
+            ctx.reply(`📖 Принято! Осталось еще *${5 - userState.wordCount}* слов до завершения челленджа.`, { parse_mode: 'Markdown' });
+        }
     }
 });
 
-// Добавляем предложение оставить отзыв после подтверждения выхода
+
+// Обработка фото (учёт обоих челленджей)
 bot.on('photo', (ctx) => {
     const userId = ctx.from.id;
     const userState = usersData[userId];
@@ -269,11 +288,24 @@ bot.on('photo', (ctx) => {
     } else if (userState.status === 'waiting_for_exit_qr') {
         usersData[userId].points = (usersData[userId].points || 0) + 10;
         ctx.reply(`✅ Выход подтвержден! Вам начислено *10 баллов*!`, { parse_mode: 'Markdown' });
-        ctx.reply('📢 Посетил кружок или мероприятие? Скорее оставь отзыв и получи за него баллы!', mainMenu);
+        ctx.reply('Выберите следующее действие:', mainMenu);
 
-        usersData[userId].challenge = 'review';  // Предлагаем оставить отзыв
         delete usersData[userId].status;
         delete usersData[userId].activity;
+        saveData(usersData);
+    } else if (userState.status === 'waiting_for_photo') {
+        usersData[userId].points = (usersData[userId].points || 0) + 5; // Начисляем 5 баллов за челлендж
+        ctx.reply(`📸 Фото принято! Вы получили *5 баллов*!`, { parse_mode: 'Markdown' });
+
+        // Сбрасываем статус
+        delete usersData[userId].status;
+        saveData(usersData);
+    } else if (userState.status === 'waiting_for_drawing') {
+        usersData[userId].points = (usersData[userId].points || 0) + 3; // Начисляем 3 балла за рисунок
+        ctx.reply(`🎨 Рисунок принят! Вы получили *3 балла*! Продолжай рисовать каждый день!`, { parse_mode: 'Markdown' });
+
+        // Сбрасываем статус, чтобы пользователь мог отправлять рисунки каждый день
+        delete usersData[userId].status;
         saveData(usersData);
     }
 });
