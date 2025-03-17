@@ -120,6 +120,13 @@ const visitTypeMenu = Markup.keyboard([
     ['🔙 Вернуться назад']
 ]).resize();
 
+// Меню челленджей
+const challengesMenu = Markup.keyboard([
+    ['🎨 Рисуй каждый день!', '📸 Фотограф недели'],
+    ['📖 Словарный запас'],
+    ['🔙 Вернуться назад']
+]).resize();
+
 // Список кружков
 const clubsMenu = Markup.keyboard([
     ['Швейная', 'Английский'],
@@ -192,6 +199,83 @@ bot.hears('🎭 Кружки', (ctx) => {
 // Обработка кнопки "Мероприятия"
 bot.hears('🎉 Мероприятия', (ctx) => {
     ctx.reply('Выберите мероприятие:', eventsMenu);
+});
+
+// Обработка кнопки "Челленджи"
+bot.hears('🏅 Челленджи', (ctx) => {
+    ctx.reply('Выберите челлендж:', challengesMenu);
+});
+
+bot.hears('🎨 Рисуй каждый день!', (ctx) => {
+    const userId = ctx.from.id;
+
+    // Создаем запись пользователя, если ее нет
+    if (!usersData[userId]) usersData[userId] = {};
+    usersData[userId].challenge = 'drawing';
+
+    saveData(usersData);
+    ctx.reply('🎨 В этом челлендже вам нужно отправлять по одному рисунку каждый день. Ждем ваш первый рисунок!');
+});
+
+bot.on('photo', (ctx) => {
+    const userId = ctx.from.id;
+    const userState = usersData[userId];
+
+    if (userState?.challenge === 'drawing') {
+        ctx.reply('🎨 Рисунок принят! Возвращайтесь завтра, чтобы загрузить новый.');
+    } else if (userState?.challenge === 'photo_week') {
+        userState.photoCount = (userState.photoCount || 0) + 1;
+        saveData(usersData);
+
+        if (userState.photoCount >= 5) {
+            ctx.reply('📸 Вы успешно завершили челлендж "Фотограф недели"! 🎉');
+            delete userState.challenge;
+            delete userState.photoCount;
+        } else {
+            ctx.reply(`📸 Фото принято! Осталось еще ${5 - userState.photoCount} фото.`);
+        }
+    }
+});
+
+bot.hears('📸 Фотограф недели', (ctx) => {
+    const userId = ctx.from.id;
+
+    if (!usersData[userId]) usersData[userId] = {};
+    usersData[userId].challenge = 'photo_week';
+    usersData[userId].photoCount = 0;
+
+    saveData(usersData);
+    ctx.reply('📸 В этом челлендже вам необходимо отправить 5 фотографий с посещенных вами мероприятий.');
+});
+
+bot.hears('📖 Словарный запас', (ctx) => {
+    const userId = ctx.from.id;
+
+    if (!usersData[userId]) usersData[userId] = {};
+    usersData[userId].challenge = 'vocabulary';
+    usersData[userId].wordCount = 0;
+
+    saveData(usersData);
+    ctx.reply('📖 В этом челлендже вам нужно отправлять 10 новых слов каждые два дня. Ждем первую порцию!');
+});
+
+bot.on('text', (ctx) => {
+    const userId = ctx.from.id;
+    const userState = usersData[userId];
+
+    if (userState?.challenge === 'vocabulary') {
+        const words = ctx.message.text.split(/\s+/);
+        userState.wordCount += words.length;
+        saveData(usersData);
+
+        if (userState.wordCount >= 10) {
+            ctx.reply('📖 Вы успешно отправили 10 новых слов! Возвращайтесь через два дня.');
+            delete userState.challenge;
+            delete userState.wordCount;
+        } else {
+            ctx.reply(`📖 Принято! Еще ${10 - userState.wordCount} слов до завершения.`);
+        }
+    }
 });
 
 
