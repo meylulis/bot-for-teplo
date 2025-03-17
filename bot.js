@@ -2,6 +2,26 @@ const { Telegraf, Markup } = require('telegraf');
 const fs = require('fs');
 require('dotenv').config();
 
+const bot = new Telegraf(process.env.BOT_TOKEN);
+
+// Файл для хранения данных пользователей
+const DATA_FILE = 'data.json';
+
+// Функция загрузки данных из JSON
+function loadData() {
+    try {
+        return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    } catch (error) {
+        console.error('❌ Ошибка загрузки данных:', error);
+        return {};
+    }
+}
+
+// Функция сохранения данных в JSON
+function saveData(data) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
 const achievements = {
     "Швейная": [
         { name: "✂️ Юный портной", visits: 5 },
@@ -83,45 +103,7 @@ function checkAchievements(userId, activity) {
 }
 
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
-
-// Файл для хранения данных пользователей
-const DATA_FILE = 'data.json';
-
-// Функция загрузки данных из JSON
-function loadData() {
-    try {
-        return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    } catch (error) {
-        console.error('❌ Ошибка загрузки данных:', error);
-        return {};
-    }
-}
-
-// Функция сохранения данных в JSON
-function saveData(data) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
-}
-
 let usersData = loadData();
-const challenges = {
-    "Рисуй каждый день": {
-        description: "🎨 В этом челлендже вам нужно отправлять по 1 рисунку в день в течение недели!",
-        type: "image",
-        goal: 7
-    },
-    "Фотограф недели": {
-        description: "📸 Отправляйте фото с мероприятий, которые вы посетили в течение недели!",
-        type: "image",
-        goal: 3
-    },
-    "Словарный запас": {
-        description: "📖 Учите новые слова! В течение недели отправьте 10 новых слов с переводом.",
-        type: "text",
-        goal: 10
-    }
-};
-
 
 // Главное меню
 const mainMenu = Markup.keyboard([
@@ -160,6 +142,82 @@ const challengesMenu = Markup.keyboard([
     ["Рисуй каждый день", "Фотограф недели"],
     ["Словарный запас", "🔙 Вернуться назад"]
 ]).resize();
+
+// Описание челленджей
+const challenges = {
+    "🎨 Рисуй каждый день": {
+        description: "🎨 В этом челлендже вам нужно отправлять по 1 рисунку в день в течение недели!",
+        type: "photo",
+        goal: 7
+    },
+    "📸 Фотограф недели": {
+        description: "📸 Отправляйте фото с мероприятий, которые вы посетили в течение недели!",
+        type: "photo",
+        goal: 3
+    },
+    "📖 Словарный запас": {
+        description: "📖 Учите новые слова! В течение недели отправьте 10 новых слов с переводом.",
+        type: "text",
+        goal: 10
+    }
+};
+
+// Обработка кнопки "Челленджи"
+bot.hears('🏆 Челленджи', (ctx) => {
+    ctx.reply("Выберите челлендж:", challengesMenu);
+});
+
+// Обработка выбора челленджа
+Object.keys(challenges).forEach(challenge => {
+    bot.hears(challenge, (ctx) => {
+        const userId = ctx.from.id;
+
+        if (!usersData[userId]) {
+            usersData[userId] = { progress: {} };
+        }
+
+        usersData[userId].challenge = challenge;
+        usersData[userId].progress[challenge] = usersData[userId].progress[challenge] || 0;
+
+        ctx.reply(
+            `${challenges[challenge].description}\n\n📌 Отправьте ${
+                challenges[challenge].type === "photo" ? "фото" : "новые слова"
+            }, чтобы выполнить челлендж!`
+        );
+        saveData(usersData);
+    });
+});
+
+// Обработка входящих фото и слов
+bot.on(['photo', 'text'], (ctx) => {
+    const userId = ctx.from.id;
+    const userChallenge = usersData[userId]?.challenge;
+
+    if (!userChallenge) return;
+
+    const challengeData = challenges[userChallenge];
+
+    if (
+        (ctx.message.photo && challengeData.type === "photo") ||
+        (ctx.message.text && challengeData.type === "text")
+    ) {
+        usersData[userId].progress[userChallenge] = (usersData[userId].progress[userChallenge] || 0) + 1;
+
+        const progress = usersData[userId].progress[userChallenge];
+        const goal = challengeData.goal;
+
+        saveData(usersData);
+
+        if (progress >= goal) {
+            ctx.reply(`🎉 Поздравляем! Вы выполнили челлендж "${userChallenge}"! 🏆`);
+            delete usersData[userId].challenge;
+            saveData(usersData);
+        } else {
+            ctx.reply(`✅ Принято! ${progress}/${goal} выполнено.`);
+        }
+    }
+});
+
 
 // Функция отправки приветственного сообщения
 function sendWelcomeMessage(ctx) {
@@ -211,59 +269,10 @@ bot.hears('🎭 Кружки', (ctx) => {
     ctx.reply('Выберите кружок:', clubsMenu);
 });
 
-// Обработка кнопки "Челленджи"
-bot.hears('🏆 Челленджи', (ctx) => {
-    ctx.reply("Выберите челлендж, в котором хотите участвовать:", challengesMenu);
+// Обработка кнопки "Мероприятия"
+bot.hears('🎉 Мероприятия', (ctx) => {
+    ctx.reply('Выберите мероприятие:', eventsMenu);
 });
-
-// Обработка выбора челленджа
-Object.keys(challenges).forEach(challenge => {
-    bot.hears(challenge, (ctx) => {
-        const userId = ctx.from.id;
-        usersData[userId] = usersData[userId] || {};
-        usersData[userId].challenge = challenge;
-        usersData[userId].progress = usersData[userId].progress || {};
-
-        ctx.reply(
-            `${challenges[challenge].description}\n\n📌 Отправьте ${
-                challenges[challenge].type === "image" ? "фото" : "слова"
-            }, чтобы выполнить челлендж!`
-        );
-        saveData(usersData);
-    });
-});
-
-// Обработка входящих фото и слов
-bot.on(['photo', 'text'], (ctx) => {
-    const userId = ctx.from.id;
-    const userChallenge = usersData[userId]?.challenge;
-
-    if (!userChallenge) return; // Если челлендж не выбран — игнорируем
-
-    const challengeData = challenges[userChallenge];
-
-    if (
-        (ctx.message.photo && challengeData.type === "image") ||
-        (ctx.message.text && challengeData.type === "text")
-    ) {
-        usersData[userId].progress[userChallenge] = (usersData[userId].progress[userChallenge] || 0) + 1;
-
-        const progress = usersData[userId].progress[userChallenge];
-        const goal = challengeData.goal;
-
-        saveData(usersData);
-
-        if (progress >= goal) {
-            ctx.reply(`🎉 Поздравляем! Вы выполнили челлендж "${userChallenge}"! 🏆`);
-            usersData[userId].challenge = null; // Завершаем челлендж
-            saveData(usersData);
-        } else {
-            ctx.reply(`✅ Принято! ${progress}/${goal} выполнено.`);
-        }
-    }
-});
-
-
 
 // Обработка списка всех кружков и мероприятий
 const activities = [
