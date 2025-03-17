@@ -203,6 +203,51 @@ bot.hears('🏅 Челленджи', (ctx) => {
     ctx.reply('Выберите челлендж:', challengesMenu);
 });
 
+bot.hears('📸 Фотограф недели', (ctx) => {
+    const userId = ctx.from.id;
+
+    // Очищаем статус пользователя, чтобы не было конфликтов
+    if (!usersData[userId]) {
+        usersData[userId] = {};
+    }
+
+    usersData[userId].status = 'waiting_for_photo'; // Новый статус
+    saveData(usersData);
+
+    ctx.reply('📷 Для участия в челлендже отправьте фото с мероприятия.');
+});
+
+// Обработка фото (добавлена проверка для челленджа)
+bot.on('photo', (ctx) => {
+    const userId = ctx.from.id;
+    const userState = usersData[userId];
+
+    if (!userState) {
+        ctx.reply('⚠️ Сначала выберите действие перед отправкой фото!');
+        return;
+    }
+
+    if (userState.status === 'waiting_for_entry_qr') {
+        ctx.reply('✅ Вход подтвержден! Теперь отправьте QR-код для выхода.', mainMenu);
+        usersData[userId].status = 'waiting_for_exit_qr';
+        saveData(usersData);
+    } else if (userState.status === 'waiting_for_exit_qr') {
+        usersData[userId].points = (usersData[userId].points || 0) + 10;
+        ctx.reply(`✅ Выход подтвержден! Вам начислено *10 баллов*!`, { parse_mode: 'Markdown' });
+        ctx.reply('Выберите следующее действие:', mainMenu);
+
+        delete usersData[userId].status;
+        delete usersData[userId].activity;
+        saveData(usersData);
+    } else if (userState.status === 'waiting_for_photo') {
+        usersData[userId].points = (usersData[userId].points || 0) + 5; // Начисляем 5 баллов за челлендж
+        ctx.reply(`📸 Фото принято! Вы получили *5 баллов*!`, { parse_mode: 'Markdown' });
+
+        // Сбрасываем статус
+        delete usersData[userId].status;
+        saveData(usersData);
+    }
+});
 
 // Обработка списка всех кружков и мероприятий
 const activities = [
@@ -233,6 +278,7 @@ activities.forEach(activity => {
         checkAchievements(userId, activity);
     });
 });
+
 
 bot.hears('🏆 Достижения', (ctx) => {
     const userId = ctx.from.id;
