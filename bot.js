@@ -2,6 +2,29 @@ const { Telegraf, Markup } = require('telegraf');
 const fs = require('fs');
 require('dotenv').config();
 
+
+const bot = new Telegraf(process.env.BOT_TOKEN);
+
+// Файл для хранения данных пользователей
+const DATA_FILE = 'data.json';
+
+// Функция загрузки данных из JSON
+function loadData() {
+    try {
+        return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    } catch (error) {
+        console.error('❌ Ошибка загрузки данных:', error);
+        return {};
+    }
+}
+
+// Функция сохранения данных в JSON
+function saveData(data) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+let usersData = loadData();
+
 const achievements = {
     "Швейная": [
         { name: "✂️ Юный портной", visits: 5 },
@@ -83,27 +106,6 @@ function checkAchievements(userId, activity) {
 }
 
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
-
-// Файл для хранения данных пользователей
-const DATA_FILE = 'data.json';
-
-// Функция загрузки данных из JSON
-function loadData() {
-    try {
-        return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    } catch (error) {
-        console.error('❌ Ошибка загрузки данных:', error);
-        return {};
-    }
-}
-
-// Функция сохранения данных в JSON
-function saveData(data) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
-}
-
-let usersData = loadData();
 
 
 // Главное меню
@@ -181,82 +183,46 @@ bot.command('reference', (ctx) => {
 });
 
 
-// Обработка кнопки "Перезапустить бота"
 bot.hears('🔄 Перезапустить бота', (ctx) => {
     sendWelcomeMessage(ctx);
 });
 
-// Обработка кнопки "Отметить ВХОД"
 bot.hears('📍 Отметить ВХОД', (ctx) => {
     ctx.reply('Выберите категорию посещения:', visitTypeMenu);
 });
 
-// Обработка кнопки "Кружки"
 bot.hears('🎭 Кружки', (ctx) => {
     ctx.reply('Выберите кружок:', clubsMenu);
 });
 
-// Обработка кнопки "Мероприятия"
 bot.hears('🎉 Мероприятия', (ctx) => {
     ctx.reply('Выберите мероприятие:', eventsMenu);
 });
 
-// Обработка кнопки "Челленджи"
 bot.hears('🏅 Челленджи', (ctx) => {
     ctx.reply('Выберите челлендж:', challengesMenu);
 });
 
+// Челленджи
 bot.hears('🎨 Рисуй каждый день!', (ctx) => {
     const userId = ctx.from.id;
-
-    // Создаем запись пользователя, если ее нет
-    if (!usersData[userId]) usersData[userId] = {};
-    usersData[userId].challenge = 'drawing';
-
+    usersData[userId] = { challenge: 'drawing' };
     saveData(usersData);
-    ctx.reply('🎨 В этом челлендже вам нужно отправлять по одному рисунку каждый день. Ждем ваш первый рисунок!');
-});
-
-bot.on('photo', (ctx) => {
-    const userId = ctx.from.id;
-    const userState = usersData[userId];
-
-    if (userState?.challenge === 'drawing') {
-        ctx.reply('🎨 Рисунок принят! Возвращайтесь завтра, чтобы загрузить новый.');
-    } else if (userState?.challenge === 'photo_week') {
-        userState.photoCount = (userState.photoCount || 0) + 1;
-        saveData(usersData);
-
-        if (userState.photoCount >= 5) {
-            ctx.reply('📸 Вы успешно завершили челлендж "Фотограф недели"! 🎉');
-            delete userState.challenge;
-            delete userState.photoCount;
-        } else {
-            ctx.reply(`📸 Фото принято! Осталось еще ${5 - userState.photoCount} фото.`);
-        }
-    }
+    ctx.reply('🎨 Рисуйте и отправляйте по одному рисунку каждый день!');
 });
 
 bot.hears('📸 Фотограф недели', (ctx) => {
     const userId = ctx.from.id;
-
-    if (!usersData[userId]) usersData[userId] = {};
-    usersData[userId].challenge = 'photo_week';
-    usersData[userId].photoCount = 0;
-
+    usersData[userId] = { challenge: 'photo_week', photoCount: 0 };
     saveData(usersData);
-    ctx.reply('📸 В этом челлендже вам необходимо отправить 5 фотографий с посещенных вами мероприятий.');
+    ctx.reply('📸 Отправьте 5 фотографий мероприятий.');
 });
 
 bot.hears('📖 Словарный запас', (ctx) => {
     const userId = ctx.from.id;
-
-    if (!usersData[userId]) usersData[userId] = {};
-    usersData[userId].challenge = 'vocabulary';
-    usersData[userId].wordCount = 0;
-
+    usersData[userId] = { challenge: 'vocabulary', wordCount: 0 };
     saveData(usersData);
-    ctx.reply('📖 В этом челлендже вам нужно отправлять 10 новых слов каждые два дня. Ждем первую порцию!');
+    ctx.reply('📖 Отправьте 10 новых слов.');
 });
 
 bot.on('text', (ctx) => {
@@ -269,11 +235,11 @@ bot.on('text', (ctx) => {
         saveData(usersData);
 
         if (userState.wordCount >= 10) {
-            ctx.reply('📖 Вы успешно отправили 10 новых слов! Возвращайтесь через два дня.');
-            delete userState.challenge;
-            delete userState.wordCount;
+            ctx.reply('📖 Вы отправили 10 слов! Челлендж завершён.');
+            delete usersData[userId].challenge;
+            delete usersData[userId].wordCount;
         } else {
-            ctx.reply(`📖 Принято! Еще ${10 - userState.wordCount} слов до завершения.`);
+            ctx.reply(`📖 Осталось еще ${10 - userState.wordCount} слов.`);
         }
     }
 });
@@ -378,41 +344,33 @@ bot.hears('💰 Баланс', (ctx) => {
 }); 
 
 
-// Обработка фото QR-кода (вход и выход)
+// Обработка фото
 bot.on('photo', (ctx) => {
     const userId = ctx.from.id;
     const userState = usersData[userId];
 
-    if (!userState || !userState.status) {
-        ctx.reply('⚠️ Сначала выберите кружок или мероприятие перед отправкой QR-кода!');
+    if (!userState) {
+        ctx.reply('⚠️ Сначала выберите действие перед отправкой фото!');
         return;
     }
-
-    console.log(`📌 Пользователь ${userId} отправил фото. Статус: ${userState.status}`);
 
     if (userState.status === 'waiting_for_entry_qr') {
         ctx.reply('✅ Вход подтвержден! Теперь отправьте QR-код для выхода.', mainMenu);
         usersData[userId].status = 'waiting_for_exit_qr';
         saveData(usersData);
     } else if (userState.status === 'waiting_for_exit_qr') {
-        usersData[userId].points = (usersData[userId].points || 0) + 10; // Суммируем баллы
-
-        ctx.reply(`✅ Выход подтвержден! Вам начислено *10 баллов* за посещение *${userState.activity}*! 🎉\n\n💰 Ваш текущий баланс: *${usersData[userId].points}* баллов.`, { parse_mode: 'Markdown' });
+        usersData[userId].points = (usersData[userId].points || 0) + 10;
+        ctx.reply(`✅ Выход подтвержден! Вам начислено *10 баллов*!`, { parse_mode: 'Markdown' });
         ctx.reply('Выберите следующее действие:', mainMenu);
 
-        // Очищаем статус пользователя
         delete usersData[userId].status;
         delete usersData[userId].activity;
         saveData(usersData);
     }
 });
 
-
-
-// Обработка кнопки "Отметить ВЫХОД"
 bot.hears('📖 Отметить ВЫХОД', (ctx) => {
     const userId = ctx.from.id;
-
     if (usersData[userId]?.status === 'waiting_for_exit_qr') {
         ctx.reply('📤 Пожалуйста, отправьте QR-код выхода.');
     } else {
