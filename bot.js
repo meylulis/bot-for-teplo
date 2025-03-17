@@ -168,27 +168,27 @@ bot.hears('🏆 Челленджи', (ctx) => {
 });
 
 // Обработка выбора челленджа
-Object.keys(challenges).forEach(challenge => {
-    bot.hears(challenge, (ctx) => {
-        const userId = ctx.from.id;
+bot.hears(Object.keys(challenges), (ctx) => {
+    const userId = ctx.from.id;
+    const challenge = ctx.message.text;
 
-        if (!usersData[userId]) {
-            usersData[userId] = { progress: {} };
-        }
+    if (!usersData[userId]) {
+        usersData[userId] = { progress: {}, challenge: null };
+    }
 
-        usersData[userId].challenge = challenge;
-        usersData[userId].progress[challenge] = usersData[userId].progress[challenge] || 0;
+    usersData[userId].challenge = challenge;
+    usersData[userId].progress[challenge] = usersData[userId].progress[challenge] || 0;
 
-        ctx.reply(
-            `${challenges[challenge].description}\n\n📌 Отправьте ${
-                challenges[challenge].type === "photo" ? "фото" : "новые слова"
-            }, чтобы выполнить челлендж!`
-        );
-        saveData(usersData);
-    });
+    saveData(usersData);
+
+    ctx.reply(
+        `${challenges[challenge].description}\n\n📌 Отправьте ${
+            challenges[challenge].type === "photo" ? "фото" : "новые слова"
+        }, чтобы выполнить челлендж!`
+    );
 });
 
-// Обработка входящих фото и слов
+// Обработка входящих фото и текста
 bot.on(['photo', 'text'], (ctx) => {
     const userId = ctx.from.id;
     const userChallenge = usersData[userId]?.challenge;
@@ -197,27 +197,26 @@ bot.on(['photo', 'text'], (ctx) => {
 
     const challengeData = challenges[userChallenge];
 
+    // Проверяем соответствие типа данных
     if (
         (ctx.message.photo && challengeData.type === "photo") ||
         (ctx.message.text && challengeData.type === "text")
     ) {
-        usersData[userId].progress[userChallenge] = (usersData[userId].progress[userChallenge] || 0) + 1;
+        usersData[userId].progress[userChallenge] += 1;
+        saveData(usersData);
 
         const progress = usersData[userId].progress[userChallenge];
         const goal = challengeData.goal;
 
-        saveData(usersData);
-
         if (progress >= goal) {
             ctx.reply(`🎉 Поздравляем! Вы выполнили челлендж "${userChallenge}"! 🏆`);
-            delete usersData[userId].challenge;
+            usersData[userId].challenge = null;
             saveData(usersData);
         } else {
             ctx.reply(`✅ Принято! ${progress}/${goal} выполнено.`);
         }
     }
 });
-
 
 // Функция отправки приветственного сообщения
 function sendWelcomeMessage(ctx) {
@@ -421,5 +420,5 @@ bot.hears('🔙 Вернуться назад', (ctx) => {
 });
 
 // Запуск бота
-bot.launch();
-console.log('🚀 Бот запущен!');
+// Запуск бота
+bot.launch().then(() => console.log('🚀 Бот запущен!'));
