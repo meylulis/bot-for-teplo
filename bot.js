@@ -203,47 +203,6 @@ bot.hears('🏅 Челленджи', (ctx) => {
     ctx.reply('Выберите челлендж:', challengesMenu);
 });
 
-// Челленджи
-bot.hears('🎨 Рисуй каждый день!', (ctx) => {
-    const userId = ctx.from.id;
-    usersData[userId] = { challenge: 'drawing' };
-    saveData(usersData);
-    ctx.reply('🎨 Рисуйте и отправляйте по одному рисунку каждый день!');
-});
-
-bot.hears('📸 Фотограф недели', (ctx) => {
-    const userId = ctx.from.id;
-    usersData[userId] = { challenge: 'photo_week', photoCount: 0 };
-    saveData(usersData);
-    ctx.reply('📸 Отправьте 5 фотографий мероприятий.');
-});
-
-bot.hears('📖 Словарный запас', (ctx) => {
-    const userId = ctx.from.id;
-    usersData[userId] = { challenge: 'vocabulary', wordCount: 0 };
-    saveData(usersData);
-    ctx.reply('📖 Отправьте 10 новых слов.');
-});
-
-bot.on('text', (ctx) => {
-    const userId = ctx.from.id;
-    const userState = usersData[userId];
-
-    if (userState?.challenge === 'vocabulary') {
-        const words = ctx.message.text.split(/\s+/);
-        userState.wordCount += words.length;
-        saveData(usersData);
-
-        if (userState.wordCount >= 10) {
-            ctx.reply('📖 Вы отправили 10 слов! Челлендж завершён.');
-            delete usersData[userId].challenge;
-            delete usersData[userId].wordCount;
-        } else {
-            ctx.reply(`📖 Осталось еще ${10 - userState.wordCount} слов.`);
-        }
-    }
-});
-
 
 // Обработка списка всех кружков и мероприятий
 const activities = [
