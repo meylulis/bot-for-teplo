@@ -209,7 +209,7 @@ bot.hears(activity, (ctx) => {
     }
 
     usersData[userId].activity = ctx.message.text;  // Сохраняем выбранный кружок или мероприятие
-    usersData[userId].status = 'waiting_for_activity_photo';  // Уникальный статус для кружков/мероприятий
+    usersData[userId].status = 'waiting_activity_photo';  // Уникальный статус для кружков/мероприятий
     saveData(usersData);
 
     ctx.reply(
@@ -226,7 +226,7 @@ bot.on('photo', (ctx) => {
     const userState = usersData[userId];
 
     // Проверка на статус "ожидание фото" для Кружков и Мероприятий
-    if (userState && userState.status === 'waiting_for_activity_photo') {
+    if (userState && userState.status === 'waiting_activity_photo') {
         // Начисляем 10 баллов за фото
         usersData[userId].points = (usersData[userId].points || 0) + 10;
         saveData(usersData);
