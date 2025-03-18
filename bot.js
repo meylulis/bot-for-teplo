@@ -243,7 +243,21 @@ bot.hears('🎨 Керамический шедевр', (ctx) => {
     ctx.reply('🏺 Для участия в челлендже отправьте фото вашего керамического изделия.');
 });
 
-// Обработка фото (учёт обоих челленджей)
+bot.hears('🧘 Эмоции через творчество', (ctx) => {
+    const userId = ctx.from.id;
+
+    // Очищаем статус пользователя, чтобы не было конфликтов
+    if (!usersData[userId]) {
+        usersData[userId] = {};
+    }
+
+    usersData[userId].status = 'waiting_for_gift_photo'; // Новый статус для подарка
+    saveData(usersData);
+
+    ctx.reply('🎨 Для участия в челлендже отправьте фото вашего рисунка или изделия с арт-терапевтической встречи.');
+});
+
+// Обработка фото (учёт челленджей)
 bot.on('photo', (ctx) => {
     const userId = ctx.from.id;
     const userState = usersData[userId];
@@ -260,7 +274,9 @@ bot.on('photo', (ctx) => {
     } else if (userState.status === 'waiting_for_drawing') {
         pointsEarned = 10;
     } else if (userState.status === 'waiting_for_ceramic_photo') {
-        pointsEarned = 5; // Начисляем 5 баллов за керамическое изделие
+        pointsEarned = 5;
+    } else if (userState.status === 'waiting_for_gift_photo') {
+        pointsEarned = 5; // Начисляем 5 баллов за арт-терапевтический подарок
     }
 
     usersData[userId].points = (usersData[userId].points || 0) + pointsEarned;
@@ -276,6 +292,7 @@ bot.on('photo', (ctx) => {
     delete usersData[userId].status;
     saveData(usersData);
 });
+
 
 
 // Обработка списка всех кружков и мероприятий
