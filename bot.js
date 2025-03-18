@@ -198,6 +198,78 @@ bot.hears('🎉 Мероприятия', (ctx) => {
     ctx.reply('Выберите мероприятие:', eventsMenu);
 });
 
+// Обработка команды "Баланс"
+bot.hears('💰 Баланс', (ctx) => {
+    const userId = ctx.from.id;
+    const balance = usersData[userId]?.points || 0;
+    ctx.reply(`💰 Ваш текущий баланс: *${balance}* баллов.`, { parse_mode: 'Markdown' });
+}); 
+
+bot.hears('🏆 Достижения', (ctx) => {
+    const userId = ctx.from.id;
+    
+    // Проверяем, есть ли у пользователя достижения
+    const userAch = usersData[userId]?.earnedAchievements || [];
+
+    if (userAch.length === 0) {
+        ctx.reply('😔 У вас пока нет достижений. Записывайтесь на мероприятия и кружки, чтобы их заработать!');
+    } else {
+        ctx.reply(`🏅 Ваши достижения:\n\n${userAch.map(a => `✅ ${a}`).join("\n")}`);
+    }
+});
+
+// Пример списка наград (можно менять)
+const rewards = {
+    "🎟️ Стикер": 20,
+    "🎁 Брелок": 50,
+    "👕 Футболка": 100
+};
+
+// Обработчик команды "Магазин наград"
+bot.hears('🎁 Магазин наград', (ctx) => {
+    const userId = ctx.from.id;
+    const userPoints = usersData[userId]?.points || 0;
+
+    // Создаём кнопки с наградами
+    const rewardButtons = Object.keys(rewards).map(reward =>
+        [Markup.button.callback(`${reward} — ${rewards[reward]} баллов`, `reward_${reward}`)]
+    );
+
+    ctx.reply(
+        `🎁 *Магазин наград*\n\n💰 Ваш баланс: *${userPoints}* баллов\n\nВыберите награду:`,
+        {
+            parse_mode: "Markdown",
+            ...Markup.inlineKeyboard(rewardButtons)
+        }
+    );
+});
+
+// Обработчик нажатий на кнопки наград
+bot.action(/^reward_(.+)/, (ctx) => {
+    const userId = ctx.from.id;
+    const userPoints = usersData[userId]?.points || 0;
+    const rewardName = ctx.match[1]; // Получаем название награды
+    const rewardCost = rewards[rewardName];
+
+    if (!rewardCost) {
+        return ctx.answerCbQuery("❌ Такой награды нет!");
+    }
+
+    if (userPoints >= rewardCost) {
+        usersData[userId].points -= rewardCost; // Списываем баллы
+        saveData(usersData); // Сохраняем изменения
+
+        ctx.reply(`✅ Вы обменяли ${rewardCost} баллов на *${rewardName}*! 🎉. Для того, чтоб забрать награду обратитесь к Админу "Тепло"`, { parse_mode: "Markdown" });
+    } else {
+        ctx.answerCbQuery(`❌ Недостаточно баллов! Нужно ещё ${rewardCost - userPoints} баллов.`);
+    }
+});
+
+// Обработка кнопки "Вернуться назад"
+bot.hears('🔙 Вернуться назад', (ctx) => {
+    ctx.reply('Вы вернулись в главное меню.', mainMenu);
+});
+
 bot.hears('🏅 Челленджи', (ctx) => {
     ctx.reply('Выберите челлендж:', challengesMenu);
 });
@@ -417,77 +489,6 @@ bot.on('photo', (ctx) => {
     delete usersData[userId].activity;
 });
 
-// Обработка команды "Баланс"
-bot.hears('💰 Баланс', (ctx) => {
-    const userId = ctx.from.id;
-    const balance = usersData[userId]?.points || 0;
-    ctx.reply(`💰 Ваш текущий баланс: *${balance}* баллов.`, { parse_mode: 'Markdown' });
-}); 
-
-bot.hears('🏆 Достижения', (ctx) => {
-    const userId = ctx.from.id;
-    
-    // Проверяем, есть ли у пользователя достижения
-    const userAch = usersData[userId]?.earnedAchievements || [];
-
-    if (userAch.length === 0) {
-        ctx.reply('😔 У вас пока нет достижений. Записывайтесь на мероприятия и кружки, чтобы их заработать!');
-    } else {
-        ctx.reply(`🏅 Ваши достижения:\n\n${userAch.map(a => `✅ ${a}`).join("\n")}`);
-    }
-});
-
-// Пример списка наград (можно менять)
-const rewards = {
-    "🎟️ Стикер": 20,
-    "🎁 Брелок": 50,
-    "👕 Футболка": 100
-};
-
-// Обработчик команды "Магазин наград"
-bot.hears('🎁 Магазин наград', (ctx) => {
-    const userId = ctx.from.id;
-    const userPoints = usersData[userId]?.points || 0;
-
-    // Создаём кнопки с наградами
-    const rewardButtons = Object.keys(rewards).map(reward =>
-        [Markup.button.callback(`${reward} — ${rewards[reward]} баллов`, `reward_${reward}`)]
-    );
-
-    ctx.reply(
-        `🎁 *Магазин наград*\n\n💰 Ваш баланс: *${userPoints}* баллов\n\nВыберите награду:`,
-        {
-            parse_mode: "Markdown",
-            ...Markup.inlineKeyboard(rewardButtons)
-        }
-    );
-});
-
-// Обработчик нажатий на кнопки наград
-bot.action(/^reward_(.+)/, (ctx) => {
-    const userId = ctx.from.id;
-    const userPoints = usersData[userId]?.points || 0;
-    const rewardName = ctx.match[1]; // Получаем название награды
-    const rewardCost = rewards[rewardName];
-
-    if (!rewardCost) {
-        return ctx.answerCbQuery("❌ Такой награды нет!");
-    }
-
-    if (userPoints >= rewardCost) {
-        usersData[userId].points -= rewardCost; // Списываем баллы
-        saveData(usersData); // Сохраняем изменения
-
-        ctx.reply(`✅ Вы обменяли ${rewardCost} баллов на *${rewardName}*! 🎉. Для того, чтоб забрать награду обратитесь к Админу "Тепло"`, { parse_mode: "Markdown" });
-    } else {
-        ctx.answerCbQuery(`❌ Недостаточно баллов! Нужно ещё ${rewardCost - userPoints} баллов.`);
-    }
-});
-
-// Обработка кнопки "Вернуться назад"
-bot.hears('🔙 Вернуться назад', (ctx) => {
-    ctx.reply('Вы вернулись в главное меню.', mainMenu);
-});
 
 // Запуск бота
 bot.launch();
