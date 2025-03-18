@@ -258,6 +258,21 @@ bot.hears('🧘 Эмоции через творчество', (ctx) => {
     ctx.reply('🎨 Для участия в челлендже отправьте фото вашего рисунка или изделия с арт-терапевтической встречи.');
 });
 
+bot.hears('🎁 Подарок своими руками', (ctx) => {
+    const userId = ctx.from.id;
+
+    // Очищаем статус пользователя, чтобы не было конфликтов
+    if (!usersData[userId]) {
+        usersData[userId] = {};
+    }
+
+    usersData[userId].status = 'waiting_for_gift_photo'; // Новый статус для подарка
+    saveData(usersData);
+
+    ctx.reply('🎨 Для участия в челлендже отправьте фото вашего рисунка или изделия с арт-терапевтической встречи.');
+});
+
+
 // Обработка фото (учёт челленджей)
 bot.on('photo', (ctx) => {
     const userId = ctx.from.id;
@@ -276,8 +291,10 @@ bot.on('photo', (ctx) => {
         pointsEarned = 10;
     } else if (userState.status === 'waiting_for_ceramic_photo') {
         pointsEarned = 5;
+    } else if (userState.status === 'waiting_for_gift_photo') {
+        pointsEarned = 5;
     } else if (userState.status === 'waiting_for_emotion_art') {
-        pointsEarned = 5; // Начисляем 5 баллов за арт-терапевтический подарок
+        pointsEarned = 5; // Начисляем 5 баллов за изделие с эмоциями
     }
 
     usersData[userId].points = (usersData[userId].points || 0) + pointsEarned;
@@ -293,8 +310,6 @@ bot.on('photo', (ctx) => {
     delete usersData[userId].status;
     saveData(usersData);
 });
-
-
 
 // Обработка списка всех кружков и мероприятий
 const activities = [
