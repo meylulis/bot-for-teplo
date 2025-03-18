@@ -241,9 +241,6 @@ bot.on('photo', (ctx) => {
         delete usersData[userId].status;
         delete usersData[userId].activity;
         saveData(usersData);
-    } else if (userState && userState.status.startsWith('waiting_for_')) {
-        // Если статус указывает на челлендж (не на кружок/мероприятие)
-        ctx.reply('⚠️ Ошибка! Вы пытаетесь отправить фото, не ожидая фото для кружка или мероприятия!');
     } else {
         // Если нет активного статуса
         ctx.reply('⚠️ Сначала выберите кружок или мероприятие перед отправкой фото!');
