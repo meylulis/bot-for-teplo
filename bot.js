@@ -221,9 +221,13 @@ activities.forEach(activity => {
         usersData[userId].activity = activity;
         saveData(usersData);
 
+        // Устанавливаем статус ожидания фото
+        usersData[userId].status = 'waiting_for_photo';  // Новый статус
+        saveData(usersData);
+
         ctx.reply(
             `📷 Вы выбрали *${activity}*.\n` +
-            `Отправьте в течение мероприятия/кружка фотографию с него и получите *10 баллов*!`, 
+            `Отправьте фотографию с мероприятия/кружка, чтобы получить *10 баллов*!`, 
             { parse_mode: 'Markdown' });
 
         // Проверяем достижения
@@ -236,12 +240,13 @@ bot.on('photo', (ctx) => {
     const userId = ctx.from.id;
     const userState = usersData[userId];
 
-    if (!userState || !userState.activity) {
+    if (!userState || userState.status !== 'waiting_for_photo') {
+        // Проверка, если пользователь не в состоянии ожидания фото
         ctx.reply('⚠️ Сначала выберите кружок или мероприятие перед отправкой фото!');
         return;
     }
 
-    // Начисляем 10 баллов
+    // Начисляем 10 баллов за фото
     usersData[userId].points = (usersData[userId].points || 0) + 10;
     saveData(usersData);
 
@@ -251,8 +256,10 @@ bot.on('photo', (ctx) => {
         { parse_mode: 'Markdown' }
     );
 
-    // Очищаем сохраненный кружок/мероприятие
-    delete usersData[userId].activity;
+    // Очищаем статус пользователя, так как фото отправлено
+    delete usersData[userId].status;
+    delete usersData[userId].activity;  // Также очищаем выбранный кружок/мероприятие
+    saveData(usersData);
 });
 
 // Обработка команды "Баланс"
@@ -339,7 +346,7 @@ bot.hears('📸 Фотограф с выставки', (ctx) => {
         usersData[userId] = {};
     }
 
-    usersData[userId].status = 'waiting_for_photo'; // Новый статус
+    usersData[userId].status = 'waiting_for_photograf'; // Новый статус
     saveData(usersData);
 
     ctx.reply('📷 Для участия в челлендже отправьте фото с мероприятия.');
@@ -500,7 +507,7 @@ bot.on('photo', (ctx) => {
 
     let pointsEarned = 0;
 
-    if (userState.status === 'waiting_for_photo') {
+    if (userState.status === 'waiting_for_photograf') {
         pointsEarned = 10;
     } else if (userState.status === 'waiting_for_drawing') {
         pointsEarned = 10;
