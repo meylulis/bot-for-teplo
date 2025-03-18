@@ -331,9 +331,67 @@ bot.hears('🏅 Челленджи', (ctx) => {
     ctx.reply('Выберите челлендж:', challengesMenu);
 });
 
+// Обработчик отправки фото для челленджей
+bot.on('photo', (ctx) => {
+    const userId = ctx.from.id;
+    const userState = usersData[userId];
+
+    if (!userState) {
+        ctx.reply('⚠️ Сначала выберите челлендж перед отправкой фото!');
+        return;
+    }
+
+    // Проверяем статус пользователя, если он участвует в челлендже
+    if (userState.status && userState.status.startsWith('waiting_for_')) {
+        let pointsEarned = 0;
+
+        // В зависимости от челленджа начисляем баллы
+        switch (userState.status) {
+            case 'waiting_for_photograf': 
+                pointsEarned = 10;
+                break;
+            case 'waiting_for_drawing':
+                pointsEarned = 10;
+                break;
+            case 'waiting_for_ceramic_photo':
+                pointsEarned = 10;
+                break;
+            case 'waiting_for_emotion_art':
+                pointsEarned = 10;
+                break;
+            case 'waiting_for_gift_photo':
+                pointsEarned = 10;
+                break;
+            default:
+                ctx.reply('⚠️ Ошибка! Неверный статус челленджа.');
+                return;
+        }
+
+        // Начисляем баллы
+        usersData[userId].points = (usersData[userId].points || 0) + pointsEarned;
+        saveData(usersData);
+
+        // Сообщаем пользователю о начисленных баллах
+        ctx.reply(
+            `✅ Фото принято! Вы получили *${pointsEarned} баллов*! 🎉\n\n` +
+            `💰 Ваш текущий баланс: *${usersData[userId].points}* баллов.`,
+            { parse_mode: 'Markdown' }
+        );
+
+        // Очищаем статус пользователя, так как фото отправлено
+        delete usersData[userId].status;
+        delete usersData[userId].activity;  // Также очищаем выбранный челлендж
+        saveData(usersData);
+    } else {
+        // Если пользователь не находится в статусе ожидания фото
+        ctx.reply('⚠️ Сначала выберите челлендж перед отправкой фото!');
+    }
+});
+
+// Обработчики для выбора челленджей
 bot.hears('📸 Фотограф с выставки', (ctx) => {
     const userId = ctx.from.id;
-
+    
     // Очищаем статус пользователя, чтобы не было конфликтов
     if (!usersData[userId]) {
         usersData[userId] = {};
@@ -398,8 +456,10 @@ bot.hears('🎁 Подарок своими руками', (ctx) => {
     usersData[userId].status = 'waiting_for_gift_photo'; // Новый статус для подарка
     saveData(usersData);
 
-    ctx.reply('🎨 Для участия в челлендже отправьте фото вашего любимого изделия или рисунка. ');
+    ctx.reply('🎨 Для участия в челлендже отправьте фото вашего любимого изделия или рисунка.');
 });
+
+
 
 bot.hears('💡 История витража', (ctx) => {
     const userId = ctx.from.id;
@@ -525,66 +585,8 @@ bot.on('text', (ctx) => {
             delete usersData[userId].status;
             saveData(usersData);
         }
-        });
+    });
 
-// Обработка отправки фото
-bot.on('photo', (ctx) => {
-    const userId = ctx.from.id;
-    const userState = usersData[userId];
-
-    // Проверяем, если пользователь не в нужном статусе
-    if (!userState || !userState.status || !userState.status.startsWith('waiting_for_')) {
-        ctx.reply('⚠️ Сначала выберите челлендж, прежде чем отправлять фото!');
-        return;
-    }
-
-    // Начисляем 10 баллов, если фото отправлено для челленджа
-    if (userState.status === 'waiting_for_photograf') {
-        usersData[userId].points = (usersData[userId].points || 0) + 10;
-        ctx.reply(
-            `✅ Фото с выставки принято! Вы получили *10 баллов*! 🎉\n\n` +
-            `💰 Ваш текущий баланс: *${usersData[userId].points}* баллов.`, 
-            { parse_mode: 'Markdown' }
-        );
-    } else if (userState.status === 'waiting_for_drawing') {
-        usersData[userId].points = (usersData[userId].points || 0) + 10;
-        ctx.reply(
-            `✅ Фото витражного изделия принято! Вы получили *10 баллов*! 🎉\n\n` +
-            `💰 Ваш текущий баланс: *${usersData[userId].points}* баллов.`, 
-            { parse_mode: 'Markdown' }
-        );
-    } else if (userState.status === 'waiting_for_ceramic_photo') {
-        usersData[userId].points = (usersData[userId].points || 0) + 10;
-        ctx.reply(
-            `✅ Фото керамического изделия принято! Вы получили *10 баллов*! 🎉\n\n` +
-            `💰 Ваш текущий баланс: *${usersData[userId].points}* баллов.`, 
-            { parse_mode: 'Markdown' }
-        );
-    } else if (userState.status === 'waiting_for_emotion_art') {
-        usersData[userId].points = (usersData[userId].points || 0) + 10;
-        ctx.reply(
-            `✅ Фото вашего арт-терапевтического изделия принято! Вы получили *10 баллов*! 🎉\n\n` +
-            `💰 Ваш текущий баланс: *${usersData[userId].points}* баллов.`, 
-            { parse_mode: 'Markdown' }
-        );
-    } else if (userState.status === 'waiting_for_gift_photo') {
-        usersData[userId].points = (usersData[userId].points || 0) + 10;
-        ctx.reply(
-            `✅ Фото подарка принято! Вы получили *10 баллов*! 🎉\n\n` +
-            `💰 Ваш текущий баланс: *${usersData[userId].points}* баллов.`, 
-            { parse_mode: 'Markdown' }
-        );
-    } else {
-        // Если статус не подходит для фото, выводим ошибку
-        ctx.reply('⚠️ Сначала выберите челлендж, прежде чем отправлять фото!');
-        return;
-    }
-
-    // Очищаем статус пользователя, так как фото отправлено
-    delete usersData[userId].status;
-    delete usersData[userId].activity;  // Также очищаем выбранный челлендж
-    saveData(usersData);
-});
 
 
 // Запуск бота
